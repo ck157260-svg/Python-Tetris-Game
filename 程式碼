@@ -1,0 +1,115 @@
+import tkinter
+import random
+Fnt=("times new Roman", 20, "bold")
+cols, rows = 10, 20
+size = 30
+score = 0
+shapes=[[[0, 0], [1, 0], [0, 1], [1, 1]], # 田字
+    [[0, 0], [-1, 0], [1, 0], [2, 0]], # 一字
+    [[0, 0], [-1, 0], [1, 0], [0, 1]], # 土字
+    [[0, 0], [1, 0], [-1, 1], [0, 1]],  # 閃電
+    [[0, 0], [1, 1], [1, 0], [-1, 0]],
+    [[0, 0], [0, -1], [0, -2], [1, 0]]]# l型
+color=["red", "blue", "green", "purple", "yellow" ]
+speed = max(100, 500-score//5)
+KICK_TABLE = [(0, 0), (-1, 0), (1, 0), (0, -1), (-1, -1), (1, -1)]
+field=[]
+for _ in range(rows):
+    field.append([0]*cols)
+#print(field)
+current_pos = [cols//2,1]
+current_shape = random.choice(shapes)
+current_color = random.choice(color)
+game_over = False
+def can_move(nx,ny,shape):
+    for bx, by in shape:
+        tx = nx + bx
+        ty = ny + by
+        if tx < 0 or tx >= cols or ty >= rows:
+            return False
+        if ty >= 0 and field[ty][tx]: 
+            return False
+    return True
+def draw():
+    global score
+    cvs.delete("all")
+    for y in range(rows):
+        for x in range(cols):
+            if field[y][x]:
+                cvs.create_rectangle(x*size, y*size, (x+1)*size, (y+1)*size, fill=field[y][x], outline="white")
+    if not game_over:
+        for bx, by in current_shape:
+            tx, ty = (current_pos[0] + bx)*size, (current_pos[1] + by)*size
+            cvs.create_rectangle(tx, ty, tx+size, ty+size, fill=current_color, outline="white")
+        cvs.create_text(80, 20, text=f"SCORE: {score}", fill="yellow", font=Fnt)
+    else:
+        cvs.create_text(cols*size//2, rows*size//2, text="GAME OVER", fill="red", font=Fnt)
+        cvs.create_text(cols*size//2, rows*size//2-50, text=f"SCORE: {score}", fill="orange", font=Fnt)
+
+def clean_block():
+    global field, score
+    new_field=[]
+    for row in field:
+        if any(cell == 0 for cell in row):
+            new_field.append(row)
+    cleared = rows -len(new_field)
+    if cleared > 0:
+        score += cleared * 100
+        for _ in range(cleared):
+            new_field.insert(0, [0]*cols)
+        field = new_field
+def lock_block():
+    global current_pos, current_shape, game_over, current_color
+    for bx, by in current_shape:
+        tx, ty = current_pos[0] + bx, current_pos[1] + by
+        if ty >= 0:
+            field[ty][tx] = current_color 
+    clean_block()
+    current_pos = [cols//2, 0]
+    current_shape = random.choice(shapes)
+    current_color = random.choice(color)
+    if not can_move(current_pos[0], current_pos[1], current_shape):
+       game_over = True 
+
+def key_press(e):
+    if game_over: return
+    key = e.keysym
+    if key == "Left" and can_move(current_pos[0]-1, current_pos[1], current_shape):
+        current_pos[0] -= 1
+    if key == "Right" and can_move(current_pos[0]+1, current_pos[1], current_shape):
+        current_pos[0] += 1
+    if key == "Down" and can_move(current_pos[0], current_pos[1]+1, current_shape):
+        current_pos[1] += 1
+    if key == "Up":
+        rotate()
+    draw()
+def rotate():
+    global current_shape
+    new_shape = []
+    for x, y in current_shape:
+        new_shape.append([-y, x])
+    for dx, dy in KICK_TABLE:
+        if can_move(current_pos[0]+dx, current_pos[1]+dy, new_shape):
+            current_pos[0] += dx
+            current_pos[1] += dy
+            current_shape=new_shape
+            return
+def main_proc():
+    if not game_over:
+        if can_move(current_pos[0], current_pos[1]+1, current_shape):
+            current_pos[1] += 1
+        else:
+            lock_block()
+        draw()
+    else:
+        return
+    speed = max(100, 500-score//5)
+    root.after(speed, main_proc)
+root = tkinter.Tk()
+root.title("TerisGame")
+root.resizable(False, False)
+root.bind("<Key>", key_press)
+cvs=tkinter.Canvas(root, width=cols*size, height=rows*size, bg="Black")
+cvs.pack()
+main_proc()
+root.mainloop()
